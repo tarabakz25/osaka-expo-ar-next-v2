@@ -3,22 +3,23 @@
 import { useCallback } from "react"
 import Particles from "react-tsparticles"
 import { css } from "@emotion/react"
-import { Engine } from "tsparticles-engine"
+import { loadFull } from "tsparticles"
 
 export default function ParticlesBg() {
-    const particlesInit = useCallback(async (engine: Engine) => {
-        // エンジン初期化をスキップします
-        // loadFullの代わりに何もしない
+    const particlesInit = useCallback(async (engine: any) => {
+        // エンジンに全機能をロード
+        await loadFull(engine)
     }, [])
 
     return (
         <Particles
             id="tsparticles"
             init={particlesInit}
+            style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 }}
             options={{
                 background: {
                     color: {
-                        value: "#000"
+                        value: "transparent"
                     }
                 },
                 particles: {
