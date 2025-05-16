@@ -1,46 +1,78 @@
-'use client'
-
 import { useCallback } from "react"
+import type { Container, Engine } from "tsparticles-engine"
 import Particles from "react-tsparticles"
-import { css } from "@emotion/react"
-import { loadFull } from "tsparticles"
+import { loadSlim } from "tsparticles-slim"
 
 export default function ParticlesBg() {
-    const particlesInit = useCallback(async (engine: any) => {
-        // エンジンに全機能をロード
-        await loadFull(engine)
+    const particlesInit = useCallback(async (engine: Engine) => {
+        await loadSlim(engine)
+    }, [])
+
+    const particlesLoaded = useCallback(async (container: Container | undefined) => {
+        console.log(container)
     }, [])
 
     return (
         <Particles
             id="tsparticles"
             init={particlesInit}
-            style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 }}
+            loaded={particlesLoaded}
             options={{
-                background: {
-                    color: {
-                        value: "transparent"
-                    }
-                },
                 particles: {
                     number: {
-                        value: 80
+                        value: 100,
+                        density: {
+                            enable: true,
+                            value_area: 800
+                        }
                     },
                     color: {
-                        value: "#ffffff"
+                        value: "#6FB8E3"
+                    },
+                    shape: {
+                        type: "circle",
+                        stroke: {
+                            width: 0,
+                            color: "#6FB8E3"
+                        }
+                    },
+                    opacity: {
+                        value: 0.5,
+                        random: true
+                    },
+                    size: {
+                        value: 5,
+                        random: true
                     },
                     links: {
-                        color: "#ffffff",
+                        enable: false,
                         distance: 150,
-                        enable: true,
-                        opacity: 0.5,
+                        color: "#888888",
+                        opacity: 0.6,
                         width: 1
                     },
                     move: {
                         enable: true,
-                        speed: 3
+                        speed: 0.5,
+                        direction: "top",
+                        random: true,
+                        straight: false
                     }
-                }
+                },
+                interactivity: {
+                    events: {
+                        onHover: {
+                            enable: true,
+                            mode: "repulse"
+                        },
+                        onClick: {
+                            enable: true,
+                            mode: "push"
+                        },
+                        resize: true
+                    }
+                },
+                detectRetina: true
             }}
         />
     )
