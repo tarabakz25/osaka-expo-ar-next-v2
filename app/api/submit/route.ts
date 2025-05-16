@@ -7,7 +7,7 @@
         return res.status(405).json({ message: "Method not allowed" });
       }
 
-    const { name, romaji, keyword, dir } = req.body;
+    const { name, project, message } = req.body;
 
     const key = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS || "{}");
 
@@ -25,7 +25,7 @@
       range: "A1",
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [[name, romaji, keyword, dir]],
+        values: [[name, project, message]],
       }
     })
 
