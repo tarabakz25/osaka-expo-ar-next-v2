@@ -43,9 +43,7 @@ export default function Home() {
           </div>
         )}
         {showSelectProject && (
-          <div className="backdrop-blur-md my-20 mx-10 bg-white/10 p-6 rounded-lg">
             <SelectProject />
-          </div>
         )}
       </div>
     </div>
