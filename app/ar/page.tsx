@@ -177,12 +177,25 @@ export default function ARPage() {
           position: fixed !important;
           top: 0 !important;
           left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
           z-index: -1 !important;
+          object-fit: cover !important;
         }
         
         /* AR.js UI要素を非表示 */
         .a-enter-vr, .a-enter-ar {
           display: none !important;
+        }
+
+        /* AR.jsが生成するカメラ要素 */
+        video {
+          object-fit: cover !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
         }
       `}</style>
 
@@ -323,7 +336,7 @@ export default function ARPage() {
       }}>
         <h2>マーカーを画面に写してください</h2>
         <p>
-          上のマーカーを写すと動画が再生されます。<br />マーカーは紙に印刷するか、別の画面に表示することもできます。
+          上のマーカーを写すと動画が再生されます。
         </p>
       </div>
     </div>

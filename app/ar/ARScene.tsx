@@ -80,16 +80,30 @@ export default function ARScene({ selectedProject, selectedProjectIndex }: ARSce
         canvas.a-canvas {
           width: 100vw !important;
           height: 100vh !important;
+          left: 0 !important;
+          position: fixed !important;
         }
         
         video {
           object-fit: cover !important;
           width: 100vw !important;
           height: 100vh !important;
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
         }
         
         .a-enter-vr, .a-enter-ar {
           display: none !important;
+        }
+
+        /* AR.js specific styles */
+        .a-canvas.a-grab-cursor:hover {
+          cursor: grab !important;
+        }
+        
+        .a-canvas.a-grab-cursor:active {
+          cursor: grabbing !important;
         }
       `;
       document.head.appendChild(style);
@@ -108,18 +122,20 @@ export default function ARScene({ selectedProject, selectedProjectIndex }: ARSce
           canvas.style.bottom = '0';
           canvas.style.zIndex = '1';
           canvas.style.objectFit = 'cover';
+          canvas.style.transform = 'none';
         } else {
           console.warn('AR Canvas not found');
         }
         
         const videos = document.querySelectorAll('video');
         videos.forEach(video => {
-          if (video.classList.contains('a-canvas') || (video.parentElement && video.parentElement.classList.contains('a-canvas'))) {
-            console.log('Camera video found:', video);
-            video.style.width = '100vw';
-            video.style.height = '100vh';
-            video.style.objectFit = 'cover';
-          }
+          console.log('Found video element:', video);
+          video.style.width = '100vw';
+          video.style.height = '100vh';
+          video.style.objectFit = 'cover';
+          video.style.position = 'fixed';
+          video.style.top = '0';
+          video.style.left = '0';
         });
       }, 1000);
 
@@ -135,6 +151,12 @@ export default function ARScene({ selectedProject, selectedProjectIndex }: ARSce
         canvas.style.width = window.innerWidth + 'px';
         canvas.style.height = window.innerHeight + 'px';
       }
+      
+      const videos = document.querySelectorAll('video');
+      videos.forEach(video => {
+        video.style.width = window.innerWidth + 'px';
+        video.style.height = window.innerHeight + 'px';
+      });
     };
     
     window.addEventListener('resize', handleResize);
@@ -310,7 +332,7 @@ export default function ARScene({ selectedProject, selectedProjectIndex }: ARSce
       embedded
       loading-screen="enabled: false;"
       device-orientation-permission-ui="enabled: true"
-      arjs="sourceType: webcam; debugUIEnabled: true; detectionMode: mono; cameraWidthRatio: 1; sourceWidth: 1280; sourceHeight: 960; displayWidth: 1280; displayHeight: 960;">
+      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; maxDetectionRate: 30; canvasWidth: window.innerWidth; canvasHeight: window.innerHeight;">
       
       <a-assets>
         <video id="projectVideo" loop="false" playsinline muted></video>
@@ -361,15 +383,33 @@ export default function ARScene({ selectedProject, selectedProjectIndex }: ARSce
       {/* カメラ状態表示 */}
       <div style={{
         position: 'fixed',
-        top: 0,
+        top: '35px',
         left: 0,
         backgroundColor: 'rgba(0,0,0,0.7)',
         color: 'white',
         padding: '8px',
         fontSize: '12px',
-        zIndex: 100
+        zIndex: 100,
+        width: '100%',
+        textAlign: 'center'
       }}>
         カメラ状態: {cameraStatus}
+      </div>
+
+      {/* サイズガイド - デバッグ用 */}
+      <div style={{
+        position: 'fixed',
+        bottom: '70px',
+        left: 0,
+        width: '100%',
+        textAlign: 'center',
+        color: 'white',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        padding: '5px',
+        fontSize: '10px',
+        zIndex: 1000
+      }}>
+        画面サイズ: {typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : '読込中...'}
       </div>
     </>
   );
