@@ -139,8 +139,18 @@ export default function ARPage() {
   return (
     <div id="arjsContent">
       {/* 外部スクリプト */}
-      <Script src="https://aframe.io/releases/1.0.4/aframe.min.js" strategy="beforeInteractive" />
-      <Script src="https://raw.githack.com/AR-js-org/AR.js/3.0.0/aframe/build/aframe-ar.js" strategy="beforeInteractive" />
+      <Script 
+        src="https://aframe.io/releases/1.0.4/aframe.min.js" 
+        strategy="beforeInteractive" 
+        onError={(e) => setDebug(prev => ({ ...prev, status: "A-Frame読み込みエラー", error: e.message }))}
+        onLoad={() => setDebug(prev => ({ ...prev, status: prev.status + ", A-Frame読み込み完了" }))} 
+      />
+      <Script 
+        src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.0.0/aframe/build/aframe-ar.js" 
+        strategy="beforeInteractive"
+        onError={(e) => setDebug(prev => ({ ...prev, status: "AR.js読み込みエラー", error: e.message }))}
+        onLoad={() => setDebug(prev => ({ ...prev, status: prev.status + ", AR.js読み込み完了" }))} 
+      />
       
       {/* スタイル追加 */}
       <style jsx global>{`

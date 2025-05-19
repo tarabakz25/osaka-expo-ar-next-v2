@@ -1,7 +1,14 @@
 "use client";
 
 /* eslint-disable react/no-unknown-property */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+
+// AR用の型拡張
+declare global {
+  interface Window {
+    arCameraInitialized?: boolean;
+  }
+}
 import { projects } from "@/data/projects";
 
 interface ARSceneProps {
@@ -11,26 +18,131 @@ interface ARSceneProps {
 
 export default function ARScene({ selectedProject, selectedProjectIndex }: ARSceneProps) {
   const arSceneRef = useRef<HTMLDivElement>(null);
+  const [cameraStatus, setCameraStatus] = useState<string>("初期化中...");
   
+  // カメラ権限の確認と状態管理
   useEffect(() => {
-    // ウェブカメラ要素のスタイルを調整（遅延して実行）
-    const timer = setTimeout(() => {
-      const video = document.querySelector('.a-canvas') as HTMLCanvasElement;
-      if (video) {
-        console.log('AR Canvas found:', video);
-        video.style.width = '100vw';
-        video.style.height = '100vh';
-        video.style.objectFit = 'cover';
-        video.style.position = 'fixed';
-        video.style.top = '0';
-        video.style.left = '0';
-        video.style.zIndex = '1';
-      } else {
-        console.log('AR Canvas element not found');
+    console.log("カメラ初期化を試みています...");
+    const checkCameraPermission = async () => {
+      try {
+        // モバイルブラウザ向けの最適化: ユーザージェスチャーが必要
+        if (!window.arCameraInitialized) {
+          console.log("カメラアクセス開始");
+          const constraints = {
+            video: {
+              facingMode: 'environment', // リアカメラを優先
+              width: { ideal: window.innerWidth },
+              height: { ideal: window.innerHeight }
+            }
+          };
+          
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          console.log("カメラ権限が許可されました", stream);
+          setCameraStatus("カメラ権限OK");
+          // 確認用のストリームを停止
+          stream.getTracks().forEach(track => track.stop());
+          window.arCameraInitialized = true;
+        }
+      } catch (err) {
+        console.error("カメラ権限エラー:", err);
+        setCameraStatus(`カメラエラー: ${err instanceof Error ? err.message : String(err)}`);
+        // iOS Safariでのカメラエラーメッセージをよりわかりやすくする
+        if (String(err).includes('NotAllowedError') || String(err).includes('SecurityError')) {
+          setCameraStatus('カメラへのアクセスが拒否されました。設定から許可してください。');
+        }
       }
-    }, 2000);
+    };
     
-    return () => clearTimeout(timer);
+    // 少し遅延させてカメラにアクセス (スクリプト読み込み完了後)
+    setTimeout(checkCameraPermission, 1000);
+  }, []);
+  
+  // AR.jsのカメラビューを画面全体に表示するためのスタイリング
+  useEffect(() => {
+    // ウェブカメラ要素のスタイルを調整
+    const applyStyles = () => {
+      // 全体のスタイルを追加
+      const style = document.createElement('style');
+      style.textContent = `
+        .a-canvas, .a-canvas.fullscreen {
+          width: 100vw !important;
+          height: 100vh !important;
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          z-index: 1 !important;
+          object-fit: cover !important;
+          transform: none !important;
+        }
+        
+        canvas.a-canvas {
+          width: 100vw !important;
+          height: 100vh !important;
+        }
+        
+        video {
+          object-fit: cover !important;
+          width: 100vw !important;
+          height: 100vh !important;
+        }
+        
+        .a-enter-vr, .a-enter-ar {
+          display: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+
+      // カメラ要素も直接スタイリング
+      setTimeout(() => {
+        const canvas = document.querySelector('.a-canvas') as HTMLElement;
+        if (canvas) {
+          console.log('AR Canvas found:', canvas);
+          canvas.style.width = '100vw';
+          canvas.style.height = '100vh';
+          canvas.style.position = 'fixed';
+          canvas.style.top = '0';
+          canvas.style.left = '0';
+          canvas.style.right = '0';
+          canvas.style.bottom = '0';
+          canvas.style.zIndex = '1';
+          canvas.style.objectFit = 'cover';
+        } else {
+          console.warn('AR Canvas not found');
+        }
+        
+        const videos = document.querySelectorAll('video');
+        videos.forEach(video => {
+          if (video.classList.contains('a-canvas') || (video.parentElement && video.parentElement.classList.contains('a-canvas'))) {
+            console.log('Camera video found:', video);
+            video.style.width = '100vw';
+            video.style.height = '100vh';
+            video.style.objectFit = 'cover';
+          }
+        });
+      }, 1000);
+
+      return style;
+    };
+
+    const style = applyStyles();
+    
+    // リサイズイベントでカメラを調整
+    const handleResize = () => {
+      const canvas = document.querySelector('.a-canvas') as HTMLElement;
+      if (canvas) {
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      document.head.removeChild(style);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   useEffect(() => {
@@ -156,6 +268,31 @@ export default function ARScene({ selectedProject, selectedProjectIndex }: ARSce
       });
     }
 
+    // A-Frameとカメラが読み込まれたかチェック
+    const checkARJSLoaded = () => {
+      const scene = document.querySelector('a-scene');
+      const video = document.querySelector('video.a-canvas');
+      
+      if (scene) {
+        console.log('A-Frame scene loaded:', scene);
+        setCameraStatus(prev => prev + ", A-Frame OK");
+      } else {
+        console.warn('A-Frame scene not loaded');
+        setCameraStatus(prev => prev + ", A-Frame未検出");
+      }
+      
+      if (video) {
+        console.log('AR.js camera video found:', video);
+        setCameraStatus(prev => prev + ", カメラ表示OK");
+      } else {
+        console.warn('AR.js camera video not found');
+        setCameraStatus(prev => prev + ", カメラ未検出");
+      }
+    };
+    
+    // A-Frameのシーンロード後にチェック
+    setTimeout(checkARJSLoaded, 3000);
+
     // クリーンアップ: コンポーネントアンマウント時にリスナーを削除
     return () => {
       marker?.removeEventListener("markerFound", markerFoundHandler);
@@ -165,14 +302,15 @@ export default function ARScene({ selectedProject, selectedProjectIndex }: ARSce
     };
   }, [selectedProject, selectedProjectIndex]);
 
-  // デフォルトのhiroマーカーを使用するようにA-Frameのマークアップを修正
+  // AR.jsの設定を改善し、モバイルブラウザでの互換性を高める
   const arSceneMarkup = `
     <a-scene
       vr-mode-ui="enabled: false;"
       renderer="logarithmicDepthBuffer: true; precision: medium; antialias: true;"
       embedded
       loading-screen="enabled: false;"
-      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono;">
+      device-orientation-permission-ui="enabled: true"
+      arjs="sourceType: webcam; debugUIEnabled: true; detectionMode: mono; cameraWidthRatio: 1; sourceWidth: 1280; sourceHeight: 960; displayWidth: 1280; displayHeight: 960;">
       
       <a-assets>
         <video id="projectVideo" loop="false" playsinline muted></video>
@@ -199,24 +337,40 @@ export default function ARScene({ selectedProject, selectedProjectIndex }: ARSce
         </a-video>
       </a-marker>
       
-      <a-entity camera></a-entity>
+      <a-entity camera="fov: 80; active: true;"></a-entity>
     </a-scene>
   `;
 
   return (
-    <div 
-      id="arjs-scene" 
-      ref={arSceneRef} 
-      style={{ 
+    <>
+      <div 
+        id="arjs-scene" 
+        ref={arSceneRef} 
+        style={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          overflow: 'hidden',
+          zIndex: 0
+        }}
+        dangerouslySetInnerHTML={{ __html: arSceneMarkup }}
+      />
+      
+      {/* カメラ状態表示 */}
+      <div style={{
         position: 'fixed',
         top: 0,
         left: 0,
-        width: '100vw',
-        height: '100vh',
-        overflow: 'hidden',
-        zIndex: 0
-      }}
-      dangerouslySetInnerHTML={{ __html: arSceneMarkup }}
-    />
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        color: 'white',
+        padding: '8px',
+        fontSize: '12px',
+        zIndex: 100
+      }}>
+        カメラ状態: {cameraStatus}
+      </div>
+    </>
   );
 } 
