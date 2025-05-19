@@ -77,7 +77,7 @@ export default function Message() {
         ご視聴ありがとうございました！良ければ、学生にメッセージをお願いいたします。
       </h2>
       
-      <div className="max-w-3xl mx-auto my-12 p-8 bg-white/85 rounded-2xl shadow-lg backdrop-blur-md z-10 relative">
+      <div className="max-w-3xl mx-auto my-12 p-8 bg-white/60 rounded-2xl shadow-lg backdrop-blur-md z-10 relative">
         {!showThankYou ? (
           <form id="messageForm" className="flex flex-col gap-5 text-black" onSubmit={handleSubmit}>
             <div className="flex flex-col gap-2">
@@ -133,7 +133,7 @@ export default function Message() {
               </div>
             )}
 
-            <div className="flex gap-4 mt-3">
+            <div className="flex gap-4 mt-3 justify-center">
               <button 
                 type="submit" 
                 className="px-6 py-3 rounded-md text-base cursor-pointer transition-all duration-300 text-center bg-blue-500 text-white border-none hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
