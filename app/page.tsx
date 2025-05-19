@@ -39,7 +39,7 @@ export default function Home() {
         </div>
         <div className={`transition-opacity duration-1000 ease-in-out ${showManual ? 'opacity-100' : 'opacity-0'}`}>
           {showManual && (
-            <div className="backdrop-blur-md mx-20 bg-white/10 p-6 rounded-lg">
+            <div className="backdrop-blur-md mx-10 bg-white/10 p-6 rounded-lg">
               <Manual />
             </div>
           )}

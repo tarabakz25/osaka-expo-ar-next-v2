@@ -9,17 +9,68 @@
 // DOM 上の ID や構造は元の実装と互換性を保つようにしているため、
 // 既存のスクリプトロジック(マーカー検知・動画再生等)をそのまま流用できます。
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Script from "next/script";
 import Image from "next/image";
 import { projects } from "@/data/projects";
+import dynamic from "next/dynamic";
+import Head from "next/head";
+
+// A-Frameシーンをクライアントサイドのみでレンダリングするためのダイナミックインポート
+const ARScene = dynamic(() => import('./ARScene'), {
+  ssr: false, // サーバーサイドレンダリングを無効化
+  loading: () => <div style={{ textAlign: 'center', marginTop: '2rem' }}>AR読み込み中...</div>
+});
 
 export default function ARPage() {
+  const [showARScene, setShowARScene] = useState(false);
+  const [selectedProjectInfo, setSelectedProjectInfo] = useState({ project: null, index: 0 });
+  const [debug, setDebug] = useState({ status: "準備中...", error: null });
+
+  // スタイルの追加
+  useEffect(() => {
+    // 全体のスタイルを調整
+    const style = document.createElement('style');
+    style.textContent = `
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        width: 100vw;
+        height: 100vh;
+      }
+      
+      #arjsContent {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // カメラの状態をチェック
+    const checkCameraStatus = () => {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+          setDebug(prev => ({ ...prev, status: "カメラ権限: OK" }));
+          stream.getTracks().forEach(track => track.stop());  // カメラをすぐに停止
+        })
+        .catch((err) => {
+          setDebug(prev => ({ ...prev, status: "カメラエラー", error: err.message }));
+          console.error("カメラアクセスエラー:", err);
+        });
+    };
+
+    checkCameraStatus();
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   // メインの副作用: 初回マウント時に元 ar.astro のスクリプトを実行
   useEffect(() => {
-    // ===== ここから元スクリプトをそのまま移植 =====
-    // window や document 等のブラウザ API を使用するため、useEffect 内で実行
-
     // プロジェクト選択情報を取得
     const urlParams = new URLSearchParams(window.location.search);
     const projectDirParam = urlParams.get("project");
@@ -59,165 +110,92 @@ export default function ARPage() {
       selectedProjectIndex = 0;
     }
 
-    // DOM 要素取得
-    const marker = document.getElementById("nftMarker") as any;
-    const projectVideo = document.getElementById("projectVideo") as HTMLVideoElement | null;
-    const projectVideoEntity = document.getElementById("projectVideoEntity") as any;
-    const projectText = document.getElementById("projectText") as any;
-    const startOverlay = document.getElementById("startOverlay") as HTMLElement | null;
-    const markerGuide = document.getElementById("markerGuide") as HTMLElement | null;
-    const thankYouContainer = document.getElementById("thankYouContainer") as HTMLElement | null;
-
-    let canPlayVideo = false;
-    let userInteracted = false;
-
-    // マーカー検出時
-    const markerFoundHandler = () => {
-      if (markerGuide) markerGuide.style.display = "none";
-      if (canPlayVideo && projectVideoEntity && projectVideo) {
-        projectVideoEntity.setAttribute("visible", "true");
-        projectVideoEntity.setAttribute("animation", {
-          property: "opacity",
-          from: 0,
-          to: 1,
-          dur: 1000,
-          easing: "easeOutCubic",
-        });
-        projectVideo.muted = false; // 音声を有効にする
-        projectVideo.play().catch((e) => console.error("Video play error after marker found:", e));
-      }
-    };
-
-    const markerLostHandler = () => {
-      if (projectVideo && !projectVideo.ended) {
-        projectVideo.pause();
-        projectVideoEntity?.setAttribute("animation", {
-          property: "opacity",
-          from: 1,
-          to: 0,
-          dur: 500,
-          easing: "easeInCubic",
-          onComplete: () => projectVideoEntity?.setAttribute("visible", "false"),
-        });
-      }
-      if (markerGuide && !projectVideo?.ended) markerGuide.style.display = "flex";
-    };
-
-    // startOverlay クリックで初期化
-    startOverlay?.addEventListener(
-      "click",
-      () => {
-        userInteracted = true;
-        if (startOverlay) startOverlay.style.display = "none";
-
-        // マーカーガイドを遅延表示
-        setTimeout(() => {
-          if (markerGuide) {
-            markerGuide.style.display = "flex";
-            setTimeout(() => {
-              markerGuide.style.opacity = "1";
-            }, 50);
-          }
-        }, 1500);
-
-        marker?.addEventListener("markerFound", markerFoundHandler);
-        marker?.addEventListener("markerLost", markerLostHandler);
-
-        // 再生準備用のミュート再生(モバイルブラウザ対策)
-        if (selectedProject?.dir && projectVideo) {
-          projectVideo.muted = true;
-          const playPromise = projectVideo.play();
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                projectVideo.pause();
-                projectVideo.currentTime = 0;
-              })
-              .catch((error) => console.warn("Initial muted play attempt failed", error));
-          }
-        }
-      },
-      { once: true }
-    );
-
-    // プロジェクト情報をテキスト表示
-    if (projectText && selectedProject) {
-      projectText.setAttribute("text", {
-        value: `${selectedProject.name}\n${selectedProject.keyword}`,
-        align: "center",
-        width: 5,
-        color: "white",
-        wrapCount: 20,
-      });
-      projectText.setAttribute("visible", "true");
-    }
-
-    // 動画ソース設定
-    if (projectVideo && selectedProject?.dir) {
-      const videoPath = `/items/${selectedProject.dir}/movie.mov`;
-      projectVideo.src = videoPath;
-
-      projectVideo.oncanplay = () => {
-        canPlayVideo = true;
-      };
-    }
-
-    // 動画終了時: お礼メッセージ表示
-    projectVideo?.addEventListener("ended", () => {
-      marker?.removeEventListener("markerFound", markerFoundHandler);
-      marker?.removeEventListener("markerLost", markerLostHandler);
-      markerGuide && (markerGuide.style.display = "none");
-
-      if (thankYouContainer) {
-        thankYouContainer.style.opacity = "0";
-        thankYouContainer.style.display = "block";
-        setTimeout(() => {
-          thankYouContainer.style.transition = "opacity 1.5s ease-in-out";
-          thankYouContainer.style.opacity = "1";
-        }, 100);
-      }
-
-      // state 保存
-      sessionStorage.setItem("selectedProjectDir", selectedProject!.dir);
-      sessionStorage.setItem("selectedProject", String(selectedProjectIndex));
+    setSelectedProjectInfo({
+      project: selectedProject,
+      index: selectedProjectIndex
     });
 
-    // "他の作品も見る" UI
-    const projectSelector = document.getElementById("projectSelector") as HTMLSelectElement | null;
-    const watchAgainButton = document.getElementById("watchAgainButton") as HTMLButtonElement | null;
-
-    if (projectSelector && watchAgainButton) {
-      // 初期選択
-      projectSelector.value = String(selectedProjectIndex);
-
-      watchAgainButton.addEventListener("click", () => {
-        const newProjectIndex = Number(projectSelector.value);
-        const newProjectDir = projects[newProjectIndex].dir;
-        sessionStorage.setItem("selectedProjectDir", newProjectDir);
-        sessionStorage.setItem("selectedProject", String(newProjectIndex));
-        // ページ再読み込み
-        window.location.href = `/ar?project=${newProjectDir}`;
-      });
-    }
-
-    // クリーンアップ: コンポーネントアンマウント時にリスナーを削除
-    return () => {
-      marker?.removeEventListener("markerFound", markerFoundHandler);
-      marker?.removeEventListener("markerLost", markerLostHandler);
-      watchAgainButton?.removeEventListener("click", () => {});
-    };
-    // ===== ここまで移植スクリプト =====
+    setShowARScene(true);
   }, []);
+
+  // 開始インストラクションがクリックされたときの処理
+  const handleStartClick = () => {
+    const startOverlay = document.getElementById("startOverlay");
+    const markerGuide = document.getElementById("markerGuide");
+
+    if (startOverlay) startOverlay.style.display = "none";
+
+    // マーカーガイドを遅延表示
+    setTimeout(() => {
+      if (markerGuide) {
+        markerGuide.style.display = "flex";
+        setTimeout(() => {
+          markerGuide.style.opacity = "1";
+        }, 50);
+      }
+    }, 1500);
+  };
 
   return (
     <div id="arjsContent">
       {/* 外部スクリプト */}
-      <Script src="https://aframe.io/releases/1.3.0/aframe.min.js" strategy="beforeInteractive" />
-      <Script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js" strategy="beforeInteractive" />
+      <Script src="https://aframe.io/releases/1.0.4/aframe.min.js" strategy="beforeInteractive" />
+      <Script src="https://raw.githack.com/AR-js-org/AR.js/3.0.0/aframe/build/aframe-ar.js" strategy="beforeInteractive" />
+      
+      {/* スタイル追加 */}
+      <style jsx global>{`
+        body {
+          margin: 0;
+          padding: 0;
+          overflow: hidden;
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+        }
+
+        #arjsContent {
+          position: relative;
+          width: 100vw;
+          height: 100vh;
+        }
+
+        .a-canvas {
+          width: 100% !important;
+          height: 100% !important;
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          z-index: -1 !important;
+        }
+        
+        /* AR.js UI要素を非表示 */
+        .a-enter-vr, .a-enter-ar {
+          display: none !important;
+        }
+      `}</style>
+
+      {/* デバッグ情報 */}
+      <div style={{
+        position: 'fixed',
+        top: '10px',
+        right: '10px',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        color: 'white',
+        padding: '5px 10px',
+        borderRadius: '5px',
+        fontSize: '12px',
+        zIndex: 1000
+      }}>
+        状態: {debug.status}
+        {debug.error && <div>エラー: {debug.error}</div>}
+      </div>
 
       {/* 開始インストラクション */}
       <div
         id="startOverlay"
+        onClick={handleStartClick}
         style={{
           position: "fixed",
           top: 0,
@@ -238,6 +216,7 @@ export default function ARPage() {
       >
         <p>ARを開始するには</p>
         <p>画面をタップしてください</p>
+        <p style={{ fontSize: '0.8em', marginTop: '1em', color: '#aaa' }}>カメラの使用許可が求められます</p>
       </div>
 
       {/* マーカー案内画像 */}
@@ -256,11 +235,8 @@ export default function ARPage() {
         }}
       >
         <div className="marker-image-container">
-          <Image src="/marker-announce.svg" alt="マーカー案内" width={300} height={200} />
+          <Image src="/marker-announce.svg" alt="マーカー案内" width={400} height={300} />
         </div>
-        <p style={{ color: "white", marginTop: "10px", backgroundColor: "rgba(0,0,0,0.7)", padding: "8px", borderRadius: "5px" }}>
-          このマーカーを画面に写すと動画が再生されます
-        </p>
       </div>
 
       {/* 動画終了後の thank you UI */}
@@ -319,44 +295,10 @@ export default function ARPage() {
         </div>
       </div>
 
-      {/* A-Frame シーン */}
-      <div id="arjs-scene">
-        <a-scene
-          vr-mode-ui="enabled: false;"
-          renderer="logarithmicDepthBuffer: true; precision: medium;"
-          embedded="true"
-          arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
-        >
-          {/* アセット管理 */}
-          <a-assets>
-            <video id="projectVideo" loop={false} playsInline muted></video>
-            <img id="markerImage" src="/marker-announce.svg" alt="AR Marker" />
-          </a-assets>
-
-          <a-marker id="nftMarker" type="image" url="/marker-announce.svg" emitevents="true" smooth="true" smoothCount="10" smoothTolerance="0.01">
-            <a-entity
-              id="projectText"
-              scale="2 2 2"
-              position="0 2 0"
-              text="value: テスト表示; align: center; width: 2; color: white; background-color: rgba(0,0,0,0.8); wrapCount: 20;"
-              visible="false"
-            ></a-entity>
-            <a-video
-              id="projectVideoEntity"
-              width="4"
-              height="2.25"
-              position="0 0 0"
-              rotation="-90 0 0"
-              src="#projectVideo"
-              visible="false"
-              opacity="0"
-              playsInline
-            ></a-video>
-          </a-marker>
-          {/* カメラ */}
-          <a-entity camera></a-entity>
-        </a-scene>
-      </div>
+      {/* クライアントサイドのみでレンダリングするARシーン */}
+      {showARScene && (
+        <ARScene selectedProject={selectedProjectInfo.project} selectedProjectIndex={selectedProjectInfo.index} />
+      )}
 
       {/* 位置調整ガイド */}
       <div className="position-guide text-center px-4 py-2" style={{
