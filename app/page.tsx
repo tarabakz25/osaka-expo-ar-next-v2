@@ -14,7 +14,7 @@ export default function Home() {
   const [showManual, setShowManual] = useState(false)
   const [showSelectProject, setShowSelectProject] = useState(false)
 
-  const delay = 1000
+  const delay = 3000
   
   useEffect(() => {
     setTimeout(() => setShowTitle(true), 0)
