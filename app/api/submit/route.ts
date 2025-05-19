@@ -1,13 +1,10 @@
-  import type { NextApiRequest, NextApiResponse } from "next";
-  import { google } from "googleapis";
+import { NextResponse } from "next/server";
+import { google } from "googleapis";
 
-  export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    try {
-      if(req.method !== "POST") {
-        return res.status(405).json({ message: "Method not allowed" });
-      }
-
-    const { name, project, message } = req.body;
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { name, project, message } = body;
 
     const key = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS || "{}");
 
@@ -25,13 +22,13 @@
       range: "A1",
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [[name, project, message]],
+        values: [[new Date().toISOString(), name, project, message]],
       }
-    })
+    });
 
-    res.status(200).json({ message: "Success" });
+    return NextResponse.json({ message: "Success" });
   } catch (error) {
     console.error("Error:", error);
-    res.status(500).json({ message: "Internal server error" });
+    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
