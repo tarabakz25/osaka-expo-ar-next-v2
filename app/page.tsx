@@ -28,13 +28,13 @@ export default function Home() {
 
   
   return (
-    <div>
+    <div className="min-h-screen">
       <Particles />
       <WaterEffect />
-      <div className={`flex flex-col items-center text-center h-screen ${showSelectProject ? 'justify-start overflow-y-auto' : 'justify-center'}`}>
+      <div className="flex flex-col items-center justify-center min-h-screen">
         <div className={`transition-opacity duration-1000 ease-in-out ${showTitle ? 'opacity-100' : 'opacity-0'}`}>
           {showTitle && (
-              <Title />
+            <Title />
           )}
         </div>
         <div className={`transition-opacity duration-1000 ease-in-out ${showManual ? 'opacity-100' : 'opacity-0'}`}>
@@ -46,7 +46,7 @@ export default function Home() {
         </div>
         <div className={`transition-opacity duration-1000 ease-in-out ${showSelectProject ? 'opacity-100' : 'opacity-0'}`}>
           {showSelectProject && (
-              <SelectProject />
+            <SelectProject />
           )}
         </div>
       </div>

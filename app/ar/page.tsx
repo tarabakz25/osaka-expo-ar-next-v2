@@ -60,7 +60,7 @@ export default function ARPage() {
     }
 
     // DOM 要素取得
-    const marker = document.getElementById("patternMarker") as any;
+    const marker = document.getElementById("nftMarker") as any;
     const projectVideo = document.getElementById("projectVideo") as HTMLVideoElement | null;
     const projectVideoEntity = document.getElementById("projectVideoEntity") as any;
     const projectText = document.getElementById("projectText") as any;
@@ -79,15 +79,17 @@ export default function ARPage() {
         projectVideoEntity.setAttribute("animation", {
           property: "opacity",
           from: 0,
+          to: 1,
           dur: 1000,
           easing: "easeOutCubic",
         });
+        projectVideo.muted = false; // 音声を有効にする
         projectVideo.play().catch((e) => console.error("Video play error after marker found:", e));
       }
     };
 
     const markerLostHandler = () => {
-      if (projectVideo) {
+      if (projectVideo && !projectVideo.ended) {
         projectVideo.pause();
         projectVideoEntity?.setAttribute("animation", {
           property: "opacity",
@@ -98,7 +100,7 @@ export default function ARPage() {
           onComplete: () => projectVideoEntity?.setAttribute("visible", "false"),
         });
       }
-      if (markerGuide) markerGuide.style.display = "flex";
+      if (markerGuide && !projectVideo?.ended) markerGuide.style.display = "flex";
     };
 
     // startOverlay クリックで初期化
@@ -123,6 +125,7 @@ export default function ARPage() {
 
         // 再生準備用のミュート再生(モバイルブラウザ対策)
         if (selectedProject?.dir && projectVideo) {
+          projectVideo.muted = true;
           const playPromise = projectVideo.play();
           if (playPromise !== undefined) {
             playPromise
@@ -143,8 +146,10 @@ export default function ARPage() {
         value: `${selectedProject.name}\n${selectedProject.keyword}`,
         align: "center",
         width: 5,
-        color: "black",
+        color: "white",
+        wrapCount: 20,
       });
+      projectText.setAttribute("visible", "true");
     }
 
     // 動画ソース設定
@@ -236,61 +241,112 @@ export default function ARPage() {
       </div>
 
       {/* マーカー案内画像 */}
-      <div id="markerGuide" style={{ display: "none", alignItems: "center", justifyContent: "center" }}>
+      <div 
+        id="markerGuide" 
+        style={{ 
+          display: "none", 
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 50,
+          opacity: 0,
+          transition: "opacity 0.5s ease-in-out",
+          textAlign: "center"
+        }}
+      >
         <div className="marker-image-container">
-          <Image src="/marker-announce.svg" alt="マーカー案内" width={300} height={300} />
+          <Image src="/marker-announce.svg" alt="マーカー案内" width={300} height={200} />
         </div>
+        <p style={{ color: "white", marginTop: "10px", backgroundColor: "rgba(0,0,0,0.7)", padding: "8px", borderRadius: "5px" }}>
+          このマーカーを画面に写すと動画が再生されます
+        </p>
       </div>
 
       {/* 動画終了後の thank you UI */}
-      <div id="thankYouContainer" style={{ display: "none", textAlign: "center" }}>
+      <div id="thankYouContainer" style={{ 
+        display: "none", 
+        textAlign: "center",
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 100,
+        backgroundColor: "rgba(0,0,0,0.8)",
+        color: "white",
+        padding: "20px",
+        borderRadius: "10px",
+        maxWidth: "90%",
+        width: "400px"
+      }}>
         <h2>ご視聴ありがとうございました！</h2>
         <p>学生の作品はいかがでしたか？</p>
         <p>良ければ、学生へのメッセージをお願いします。</p>
-        <a href="/message" id="messageButton">
+        <a href="/message" id="messageButton" style={{
+          display: "inline-block",
+          backgroundColor: "#00a0e9",
+          color: "white",
+          padding: "10px 20px",
+          textDecoration: "none",
+          borderRadius: "5px",
+          margin: "10px 0 20px",
+          fontWeight: "bold"
+        }}>
           Send Message!
         </a>
         <div className="project-selection">
           <p>他の作品も見ますか？</p>
-          <select id="projectSelector">
+          <select id="projectSelector" style={{
+            padding: "8px",
+            marginRight: "10px",
+            borderRadius: "5px"
+          }}>
             {projects.map((project, index) => (
               <option key={project.dir} value={index}>
                 {project.name} - {project.keyword}
               </option>
             ))}
           </select>
-          <button id="watchAgainButton">Start!</button>
+          <button id="watchAgainButton" style={{
+            backgroundColor: "#00a0e9",
+            color: "white",
+            border: "none",
+            padding: "8px 15px",
+            borderRadius: "5px",
+            cursor: "pointer",
+            fontWeight: "bold"
+          }}>Start!</button>
         </div>
       </div>
 
       {/* A-Frame シーン */}
       <div id="arjs-scene">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <a-scene
           vr-mode-ui="enabled: false;"
           renderer="logarithmicDepthBuffer: true; precision: medium;"
           embedded="true"
-          arjs="trackingMethod: best; sourceType: webcam;"
+          arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
         >
           {/* アセット管理 */}
           <a-assets>
-            <video id="projectVideo" loop={false} playsInline></video>
+            <video id="projectVideo" loop={false} playsInline muted></video>
+            <img id="markerImage" src="/marker-announce.svg" alt="AR Marker" />
           </a-assets>
 
-          <a-marker type="pattern" url="/pattern-test.patt" id="patternMarker">
+          <a-marker id="nftMarker" type="image" url="/marker-announce.svg" emitevents="true" smooth="true" smoothCount="10" smoothTolerance="0.01">
             <a-entity
               id="projectText"
               scale="2 2 2"
-              position="2 2 0"
+              position="0 2 0"
               text="value: テスト表示; align: center; width: 2; color: white; background-color: rgba(0,0,0,0.8); wrapCount: 20;"
               visible="false"
             ></a-entity>
             <a-video
               id="projectVideoEntity"
-              width="6"
-              height="2"
-              position="0.5 0 0"
-              rotation="-45 0 0"
+              width="4"
+              height="2.25"
+              position="0 0 0"
+              rotation="-90 0 0"
               src="#projectVideo"
               visible="false"
               opacity="0"
@@ -303,10 +359,19 @@ export default function ARPage() {
       </div>
 
       {/* 位置調整ガイド */}
-      <div className="position-guide text-center px-4 py-2">
-        <h2>マネキン上のマーカーを写して見てください！</h2>
+      <div className="position-guide text-center px-4 py-2" style={{
+        position: "fixed",
+        bottom: "20px",
+        left: "0",
+        right: "0",
+        backgroundColor: "rgba(0,0,0,0.7)",
+        color: "white",
+        padding: "10px",
+        zIndex: 40
+      }}>
+        <h2>マーカーを画面に写してください</h2>
         <p>
-          画面で動画の左右の位置を調節できます。<br />動画が大きすぎる時は、少し離れて見て見てください。
+          上のマーカーを写すと動画が再生されます。<br />マーカーは紙に印刷するか、別の画面に表示することもできます。
         </p>
       </div>
     </div>

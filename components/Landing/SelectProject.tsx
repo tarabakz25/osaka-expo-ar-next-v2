@@ -24,12 +24,12 @@ export default function SelectProject() {
     <div>
       <h2 className="text-2xl font-bold m-10 text-center backdrop-blur-md bg-white/10 p-4 rounded-lg">プロジェクトを<br></br>選択してください</h2>
       {/* カード一覧 */}
-      <div className="grid grid-cols-2 gap-8 items-center justify-items-center m-20">
+      <div className="grid grid-cols-2 gap-8 items-center justify-items-center m-10">
         {projects.map((project: Project, index: number) => (
           <div
             key={project.dir}
             onClick={() => handleCardClick(project.dir)}
-            className={`relative w-30 aspect-[128/212] overflow-hidden shadow-lg group cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:scale-105 bg-gradient-to-b from-[#e6e6e6] to-[#b3b3b3] ${
+            className={`relative w-35 aspect-[128/212] overflow-hidden shadow-lg group cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:scale-105 bg-gradient-to-b from-[#e6e6e6] to-[#b3b3b3] ${
               visibleCards.includes(index) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}
           >
