@@ -30,6 +30,7 @@ export default function Home() {
   return (
     <div>
       <Particles />
+      <WaterEffect />
       <div className={`flex flex-col items-center text-center h-screen ${showSelectProject ? 'justify-start overflow-y-auto' : 'justify-center'}`}>
         {showTitle && (
           <div className="backdrop-blur-md mx-20 bg-white/10 p-6 rounded-lg">
