@@ -3,14 +3,7 @@
 import { useState, useEffect } from "react";
 import { projects } from "@/data/projects";
 import type { Project } from "@/types/project";
-import Script from "next/script";
-
-// particlesJSの型定義
-declare global {
-  interface Window {
-    particlesJS: (id: string, options: any) => void;
-  }
-}
+import ParticlesBg from "@/components/ParticlesBg";
 
 export default function Message() {
   const [name, setName] = useState("");
@@ -18,6 +11,7 @@ export default function Message() {
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showThankYou, setShowThankYou] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     // セッションストレージから選択されたプロジェクトを取得
@@ -25,73 +19,12 @@ export default function Message() {
     if (selectedProjectIndex !== null) {
       setProjectIndex(selectedProjectIndex);
     }
-
-    // パーティクルJSの初期化
-    if (typeof window !== "undefined" && window.particlesJS) {
-      window.particlesJS("particles-js", {
-        particles: {
-          number: {
-            value: 100,
-            density: {
-              enable: true,
-              value_area: 800,
-            },
-          },
-          color: {
-            value: "#A5DFFF",
-          },
-          shape: {
-            type: "circle",
-            stroke: {
-              width: 0,
-              color: "#A5DFFF",
-            },
-          },
-          opacity: {
-            value: 0.8,
-            random: true,
-          },
-          size: {
-            value: 5,
-            random: true,
-          },
-          line_linked: {
-            enable: false,
-            distance: 150,
-            color: "#888888",
-            opacity: 0.6,
-            width: 1,
-          },
-          move: {
-            enable: true,
-            speed: 1,
-            direction: "top",
-            random: true,
-            straight: false,
-          },
-        },
-        interactivity: {
-          detect_on: "canvas",
-          events: {
-            onhover: {
-              enable: true,
-              mode: "repulse",
-            },
-            onclick: {
-              enable: true,
-              mode: "push",
-            },
-            resize: true,
-          },
-        },
-        retina_detect: true,
-      });
-    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError("");
     
     // プロジェクト名を取得
     let projectName = "";
@@ -100,29 +33,37 @@ export default function Message() {
       projectName = `${selectedProject.name} - ${selectedProject.keyword}`;
     }
 
+    const requestData = { 
+      name, 
+      project: projectName, 
+      message 
+    };
+    
+    console.log("送信データ:", requestData);
+
     try {
       const res = await fetch("/api/submit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
-          name, 
-          project: projectName, 
-          message 
-        }),
+        body: JSON.stringify(requestData),
       });
 
+      console.log("API レスポンスステータス:", res.status);
+      
       const json = await res.json();
+      console.log("API レスポンス:", json);
+      
       if (json.message === "Success") {
         setShowThankYou(true);
       } else {
-        alert("送信に失敗しました");
-        console.error("Error:", json.message);
+        setError(json.error || json.message || "送信に失敗しました");
+        console.error("エラーレスポンス:", json);
       }
     } catch (error) {
       console.error("送信中にエラーが発生しました:", error);
-      alert("エラーが発生しました。ネットワーク接続を確認するか、もう一度お試しください。");
+      setError("エラーが発生しました。ネットワーク接続を確認するか、もう一度お試しください。");
     } finally {
       setIsSubmitting(false);
     }
@@ -130,17 +71,15 @@ export default function Message() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
-      <Script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js" strategy="beforeInteractive" />
-      
-      <div id="particles-js" className="absolute top-0 left-0 w-full h-full -z-10"></div>
+      <ParticlesBg />
+
+      <h2 className="text-gray-800 text-center text-2xl text-white font-bold mx-10 my-15">
+        ご視聴ありがとうございました！良ければ、学生にメッセージをお願いいたします。
+      </h2>
       
       <div className="max-w-3xl mx-auto my-12 p-8 bg-white/85 rounded-2xl shadow-lg backdrop-blur-md z-10 relative">
-        <h2 className="text-gray-800 text-center mb-8 text-2xl">
-          ご視聴ありがとうございました！良ければ、学生にメッセージをお願いいたします。
-        </h2>
-
         {!showThankYou ? (
-          <form id="messageForm" className="flex flex-col gap-5" onSubmit={handleSubmit}>
+          <form id="messageForm" className="flex flex-col gap-5 text-black" onSubmit={handleSubmit}>
             <div className="flex flex-col gap-2">
               <label htmlFor="name">お名前（ニックネーム）</label>
               <input
@@ -151,6 +90,7 @@ export default function Message() {
                 placeholder="お名前を入力"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                required
               />
             </div>
 
@@ -187,6 +127,12 @@ export default function Message() {
               ></textarea>
             </div>
 
+            {error && (
+              <div className="text-red-500 p-3 bg-red-50 border border-red-200 rounded-md">
+                {error}
+              </div>
+            )}
+
             <div className="flex gap-4 mt-3">
               <button 
                 type="submit" 
@@ -201,7 +147,7 @@ export default function Message() {
         ) : (
           <div className="text-center p-8">
             <h2 className="mb-4 text-blue-500">メッセージを送信しました！</h2>
-            <p className="mb-6 text-lg">ご参加いただきありがとうございます。</p>
+            <p className="mb-6 text-lg text-black">ご参加いただきありがとうございます。</p>
             <a href="/" className="px-6 py-3 rounded-md text-base cursor-pointer transition-all duration-300 text-center bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200">トップに戻る</a>
           </div>
         )}
